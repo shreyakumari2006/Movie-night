@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Movie Night - Discover top-rated movies, explore genres, view trailers & cast details, and curate your personalized watchlist in a sleek modern interface." />
-  <meta name="keywords" content="movies, cinema, movie discovery, watchlist, film ratings, movie trailers, streaming recommendations" />
+  <meta name="description" content="Movie Night - Discover top-rated movies, explore genres and decades, view trailers & cast details, read and submit reviews, and curate your personalized watchlist." />
+  <meta name="keywords" content="movies, cinema, movie discovery, watchlist, film ratings, movie trailers, film reviews, streaming recommendations" />
   <meta name="theme-color" content="#0b0f19" />
   <title>Movie Night — Discover & Curate Your Cinema Experience</title>
 
@@ -56,9 +56,9 @@
 
       <!-- Global Actions (Randomizer & Theme Toggle) -->
       <div class="header-actions">
-        <button type="button" class="btn-icon-secondary" id="btn-surprise-me" title="Surprise me with a random movie recommendation" aria-label="Random Movie">
-          <i data-lucide="sparkles"></i>
-          <span class="action-btn-label">Surprise Me</span>
+        <button type="button" class="btn-icon-secondary btn-surprise" id="btn-surprise-me" title="Surprise me with a random movie recommendation" aria-label="Random Movie">
+          <i data-lucide="sparkles" class="sparkle-spin"></i>
+          <span class="action-btn-label">Surprise Me!</span>
         </button>
 
         <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle Light / Dark Mode" aria-label="Toggle Theme">
@@ -120,7 +120,7 @@
             type="search"
             id="movie-search-input"
             class="movie-search-input"
-            placeholder="Search by title, director, actor, genre... (Press '/' to focus)"
+            placeholder="Search title, director, cast, keywords... (Press '/' to focus)"
             autocomplete="off"
             aria-label="Search movies"
           />
@@ -141,6 +141,23 @@
               <select id="genre-select" class="styled-select" aria-label="Filter movies by genre">
                 <option value="ALL">All Genres</option>
                 <!-- Populated dynamically via JS -->
+              </select>
+              <i data-lucide="chevron-down" class="select-chevron"></i>
+            </div>
+          </div>
+
+          <!-- Decade Filter Selector -->
+          <div class="custom-select-wrapper">
+            <label for="decade-select" class="control-label">
+              <i data-lucide="calendar"></i> Era
+            </label>
+            <div class="select-container">
+              <select id="decade-select" class="styled-select" aria-label="Filter movies by decade">
+                <option value="ALL">All Eras / Decades</option>
+                <option value="2020s">2020s (Modern Hits)</option>
+                <option value="2010s">2010s (Golden Era)</option>
+                <option value="2000s">2000s (Millennium Hits)</option>
+                <option value="1990s_older">1990s & Classics</option>
               </select>
               <i data-lucide="chevron-down" class="select-chevron"></i>
             </div>
@@ -180,7 +197,7 @@
           <span id="results-count-text">Showing all movies</span>
         </div>
         <div class="active-filter-chips" id="active-filter-chips">
-          <!-- Dynamic chips for active search/genre/view -->
+          <!-- Dynamic chips for active search/genre/era/view -->
         </div>
         <button type="button" class="btn-reset-filters" id="btn-reset-filters" style="display: none;">
           <i data-lucide="rotate-ccw"></i> <span>Reset Filters</span>
@@ -190,14 +207,23 @@
 
     <!-- Movie Grid Section -->
     <section class="movies-grid-section" id="movies-grid-section" aria-label="Movie Catalog">
+      <!-- Loading Skeleton Container -->
+      <div class="skeleton-grid" id="skeleton-grid" style="display: none;">
+        <!-- Injected during filter shimmers -->
+      </div>
+
+      <!-- Live Movie Cards Grid -->
       <div class="movie-grid" id="movie-grid">
         <!-- Rendered dynamically by app.js -->
       </div>
 
       <!-- Empty State Container -->
       <div class="empty-state-card" id="empty-state" style="display: none;">
-        <div class="empty-state-icon-wrapper">
-          <i data-lucide="clapperboard" class="empty-icon"></i>
+        <div class="empty-state-visual">
+          <div class="empty-state-circle-glow"></div>
+          <div class="empty-state-icon-box">
+            <i data-lucide="film" class="empty-icon" id="empty-state-icon"></i>
+          </div>
         </div>
         <h3 class="empty-state-title" id="empty-state-title">No Movies Found</h3>
         <p class="empty-state-description" id="empty-state-description">
@@ -223,7 +249,7 @@
       </button>
 
       <div class="modal-inner-content" id="modal-inner-content">
-        <!-- Dynamic content injected by app.js -->
+        <!-- Dynamic content injected by app.js (Includes Backdrop, Poster, Synopsis, Cast, Star Rating & Reviews) -->
       </div>
     </div>
   </div>
@@ -260,7 +286,7 @@
         <span class="footer-title">MOVIE<span class="highlight">NIGHT</span></span>
       </div>
       <p class="footer-copy">
-        Curated cinema discovery application. Featuring seamless real-time search, multi-genre filtering, custom ratings, responsive modals, and watchlist persistence.
+        Curated cinema discovery application. Featuring real-time search, multi-genre & decade filtering, interactive ratings & reviews, embedded trailers, and local storage persistence.
       </p>
       <div class="footer-shortcuts">
         <span class="kbd-badge"><kbd>/</kbd> Quick Search</span>

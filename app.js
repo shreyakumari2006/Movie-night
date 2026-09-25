@@ -1,6 +1,6 @@
 /**
  * Movie Night - Cinema Discovery Application
- * Modern Vanilla JavaScript (ES6+) Implementation
+ * Modern Vanilla JavaScript (ES6+) Implementation with Reviews, Decades Filter & Roulette Picker
  */
 
 // --- Comprehensive Curated Movie Dataset ---
@@ -78,7 +78,7 @@ const MOVIES_DATA = [
     writer: "Phil Lord, Christopher Miller, Dave Callaham",
     cast: ["Shameik Moore", "Hailee Steinfeld", "Oscar Isaac", "Jake Johnson", "Daniel Kaluuya"],
     synopsis: "Miles Morales catapults across the Multiverse, where he encounters a team of Spider-People charged with protecting its very existence.",
-    longSynopsis: "After reuniting with Gwen Stacy, Brooklyn's full-time, friendly neighborhood Spider-Man is catapulted across the Multiverse, where he encounters the Spider Society, a team of Spider-People charged with protecting the Multiverse's very existence. But when the heroes clash on how to handle a new threat, Miles finds himself pitted against the other Spiders and must redefine what it means to be a hero so he can save the people he loves most.",
+    longSynopsis: "After reunuting with Gwen Stacy, Brooklyn's full-time, friendly neighborhood Spider-Man is catapulted across the Multiverse, where he encounters the Spider Society, a team of Spider-People charged with protecting the Multiverse's very existence. But when the heroes clash on how to handle a new threat, Miles finds himself pitted against the other Spiders and must redefine what it means to be a hero so he can save the people he loves most.",
     poster: "https://images.unsplash.com/photo-1635805737707-575885ab0820?w=600&auto=format&fit=crop&q=80",
     backdrop: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=1200&auto=format&fit=crop&q=80",
     trailerId: "cqGjhVJWtEg",
@@ -327,17 +327,51 @@ const MOVIES_DATA = [
   }
 ];
 
+// Initial Seed Community Reviews
+const DEFAULT_COMMUNITY_REVIEWS = {
+  m1: [
+    {
+      id: "rev-init-1",
+      name: "Alex Cinephile",
+      rating: 5,
+      comment: "A modern sci-fi masterpiece. Hans Zimmer's score paired with mind-bending set pieces is pure cinema.",
+      date: "Aug 14, 2026"
+    }
+  ],
+  m5: [
+    {
+      id: "rev-init-2",
+      name: "Sarah Jenkins",
+      rating: 5,
+      comment: "Cillian Murphy and Robert Downey Jr deliver career-best performances. The Trinity test sequence left me breathless.",
+      date: "Sep 02, 2026"
+    }
+  ],
+  m2: [
+    {
+      id: "rev-init-3",
+      name: "David K.",
+      rating: 5,
+      comment: "The docking scene alone makes this one of the greatest space epics ever made. Emotional and visually staggering.",
+      date: "Sep 18, 2026"
+    }
+  ]
+};
+
 // --- App State ---
 const state = {
   searchQuery: "",
   selectedGenre: "ALL",
+  selectedDecade: "ALL", // "ALL" | "2020s" | "2010s" | "2000s" | "1990s_older"
   sortBy: "rating-desc",
   activeView: "all", // "all" | "watchlist"
   watchlist: new Set(),
   userRatings: {},
+  userReviews: {}, // { [movieId]: [ { id, name, rating, comment, date } ] }
   theme: "dark",
   currentModalMovieId: null,
-  featuredMovieId: "m5" // Default featured movie (Oppenheimer)
+  featuredMovieId: "m5",
+  isShuffling: false
 };
 
 // --- DOM Element References ---
@@ -366,15 +400,18 @@ const elements = {
   movieSearchInput: document.getElementById("movie-search-input"),
   searchClearBtn: document.getElementById("search-clear-btn"),
   genreSelect: document.getElementById("genre-select"),
+  decadeSelect: document.getElementById("decade-select"),
   sortSelect: document.getElementById("sort-select"),
   genrePillsContainer: document.getElementById("genre-pills-container"),
   resultsCountText: document.getElementById("results-count-text"),
   activeFilterChips: document.getElementById("active-filter-chips"),
   btnResetFilters: document.getElementById("btn-reset-filters"),
 
-  // Grid & Empty States
+  // Grid, Skeletons & Empty States
   movieGrid: document.getElementById("movie-grid"),
+  skeletonGrid: document.getElementById("skeleton-grid"),
   emptyState: document.getElementById("empty-state"),
+  emptyStateIcon: document.getElementById("empty-state-icon"),
   emptyStateTitle: document.getElementById("empty-state-title"),
   emptyStateDescription: document.getElementById("empty-state-description"),
   btnEmptyReset: document.getElementById("btn-empty-reset"),
@@ -408,12 +445,20 @@ function loadFromStorage() {
       state.userRatings = JSON.parse(savedRatings);
     }
 
+    const savedReviews = localStorage.getItem("movienight_reviews");
+    if (savedReviews) {
+      state.userReviews = JSON.parse(savedReviews);
+    } else {
+      state.userReviews = { ...DEFAULT_COMMUNITY_REVIEWS };
+    }
+
     const savedTheme = localStorage.getItem("movienight_theme");
     if (savedTheme) {
       state.theme = savedTheme;
     }
   } catch (e) {
     console.warn("Could not access localStorage:", e);
+    state.userReviews = { ...DEFAULT_COMMUNITY_REVIEWS };
   }
 }
 
@@ -430,6 +475,14 @@ function saveRatingsToStorage() {
     localStorage.setItem("movienight_ratings", JSON.stringify(state.userRatings));
   } catch (e) {
     console.warn("Failed to save ratings to localStorage:", e);
+  }
+}
+
+function saveReviewsToStorage() {
+  try {
+    localStorage.setItem("movienight_reviews", JSON.stringify(state.userReviews));
+  } catch (e) {
+    console.warn("Failed to save reviews to localStorage:", e);
   }
 }
 
@@ -517,7 +570,22 @@ function handleGenreChange(newGenre) {
     btn.classList.toggle("active", btn.dataset.genre === newGenre);
   });
 
-  renderCatalog();
+  triggerSkeletonTransition();
+}
+
+function handleDecadeChange(newDecade) {
+  state.selectedDecade = newDecade;
+  triggerSkeletonTransition();
+}
+
+// Decade Matching Helper
+function matchesDecade(year, decade) {
+  if (decade === "ALL") return true;
+  if (decade === "2020s") return year >= 2020;
+  if (decade === "2010s") return year >= 2010 && year <= 2019;
+  if (decade === "2000s") return year >= 2000 && year <= 2009;
+  if (decade === "1990s_older") return year < 2000;
+  return true;
 }
 
 // --- Filtering & Sorting Pipeline ---
@@ -530,6 +598,11 @@ function getFilteredAndSortedMovies() {
 
     // Genre Filter
     if (state.selectedGenre !== "ALL" && !movie.genres.includes(state.selectedGenre)) {
+      return false;
+    }
+
+    // Decade Filter
+    if (!matchesDecade(movie.year, state.selectedDecade)) {
       return false;
     }
 
@@ -568,6 +641,37 @@ function getFilteredAndSortedMovies() {
   });
 }
 
+// --- Skeleton Shimmer Transition ---
+function triggerSkeletonTransition() {
+  renderSkeletonGrid(6);
+  elements.movieGrid.style.display = "none";
+  elements.skeletonGrid.style.display = "grid";
+  elements.emptyState.style.display = "none";
+
+  setTimeout(() => {
+    elements.skeletonGrid.style.display = "none";
+    renderCatalog();
+  }, 160);
+}
+
+function renderSkeletonGrid(count = 6) {
+  elements.skeletonGrid.innerHTML = "";
+  for (let i = 0; i < count; i++) {
+    const skCard = document.createElement("div");
+    skCard.className = "skeleton-card";
+    skCard.innerHTML = `
+      <div class="skeleton-poster skeleton-shimmer"></div>
+      <div class="skeleton-body">
+        <div class="skeleton-meta-bar skeleton-shimmer"></div>
+        <div class="skeleton-title-bar skeleton-shimmer"></div>
+        <div class="skeleton-genres-bar skeleton-shimmer"></div>
+        <div class="skeleton-desc-bar skeleton-shimmer"></div>
+      </div>
+    `;
+    elements.skeletonGrid.appendChild(skCard);
+  }
+}
+
 // --- Render Movie Cards & Catalog ---
 function renderCatalog() {
   const filteredMovies = getFilteredAndSortedMovies();
@@ -589,9 +693,11 @@ function renderCatalog() {
     if (state.activeView === "watchlist") {
       elements.emptyStateTitle.textContent = "Your Watchlist is Empty";
       elements.emptyStateDescription.textContent = "You haven't added any movies to your watchlist yet. Tap the bookmark icon on any movie card to save it for later!";
+      elements.btnEmptyReset.innerHTML = `<i data-lucide="compass"></i> <span>Explore Discover Catalog</span>`;
     } else {
       elements.emptyStateTitle.textContent = "No Movies Found";
-      elements.emptyStateDescription.textContent = `No movies match your current search "${state.searchQuery}" or genre filter "${state.selectedGenre}".`;
+      elements.emptyStateDescription.textContent = `No movies match your current search "${state.searchQuery || ""}", genre "${state.selectedGenre}", or decade "${state.selectedDecade}".`;
+      elements.btnEmptyReset.innerHTML = `<i data-lucide="sparkles"></i> <span>Explore All Movies</span>`;
     }
   } else {
     elements.emptyState.style.display = "none";
@@ -646,8 +752,11 @@ function createMovieCard(movie) {
       </button>
       <div class="poster-hover-overlay">
         <span class="quick-view-label">
-          <i data-lucide="eye"></i> Quick View
+          <i data-lucide="eye"></i> Details
         </span>
+        <button type="button" class="card-quick-trailer-btn" data-action="quick-trailer" title="Watch Trailer" aria-label="Watch Trailer">
+          <i data-lucide="play"></i>
+        </button>
       </div>
     </div>
     <div class="movie-card-body">
@@ -665,12 +774,17 @@ function createMovieCard(movie) {
     </div>
   `;
 
-  // Click event: Watchlist button vs Open Modal
+  // Click event handling
   card.addEventListener("click", (e) => {
     const watchlistBtn = e.target.closest("[data-action='watchlist']");
+    const trailerBtn = e.target.closest("[data-action='quick-trailer']");
+
     if (watchlistBtn) {
       e.stopPropagation();
       toggleWatchlist(movie.id);
+    } else if (trailerBtn) {
+      e.stopPropagation();
+      openTrailerModal(movie.trailerId, movie.title);
     } else {
       openMovieModal(movie.id);
     }
@@ -692,8 +806,8 @@ function updateFilterSummary(count) {
   let summaryText = "";
   if (state.activeView === "watchlist") {
     summaryText = `Showing ${count} ${count === 1 ? "movie" : "movies"} in your Watchlist`;
-  } else if (state.selectedGenre !== "ALL") {
-    summaryText = `Showing ${count} ${count === 1 ? "movie" : "movies"} in ${state.selectedGenre}`;
+  } else if (state.selectedGenre !== "ALL" || state.selectedDecade !== "ALL") {
+    summaryText = `Showing ${count} ${count === 1 ? "movie" : "movies"} matching active filters`;
   } else {
     summaryText = `Showing ${count} ${count === 1 ? "movie" : "movies"}`;
   }
@@ -721,6 +835,18 @@ function updateFilterSummary(count) {
     elements.activeFilterChips.appendChild(chip);
   }
 
+  if (state.selectedDecade !== "ALL") {
+    hasFilters = true;
+    const chip = document.createElement("span");
+    chip.className = "filter-chip";
+    chip.innerHTML = `Era: ${state.selectedDecade} <span class="filter-chip-remove" data-action="clear-decade"><i data-lucide="x"></i></span>`;
+    chip.querySelector("[data-action='clear-decade']").addEventListener("click", () => {
+      elements.decadeSelect.value = "ALL";
+      handleDecadeChange("ALL");
+    });
+    elements.activeFilterChips.appendChild(chip);
+  }
+
   if (state.searchQuery.trim() !== "") {
     hasFilters = true;
     const chip = document.createElement("span");
@@ -730,7 +856,7 @@ function updateFilterSummary(count) {
       elements.movieSearchInput.value = "";
       state.searchQuery = "";
       elements.searchClearBtn.classList.remove("visible");
-      renderCatalog();
+      triggerSkeletonTransition();
     });
     elements.activeFilterChips.appendChild(chip);
   }
@@ -742,9 +868,11 @@ function updateFilterSummary(count) {
 function resetAllFilters() {
   state.searchQuery = "";
   state.selectedGenre = "ALL";
+  state.selectedDecade = "ALL";
   state.sortBy = "rating-desc";
   elements.movieSearchInput.value = "";
   elements.genreSelect.value = "ALL";
+  elements.decadeSelect.value = "ALL";
   elements.sortSelect.value = "rating-desc";
   elements.searchClearBtn.classList.remove("visible");
   
@@ -755,7 +883,7 @@ function resetAllFilters() {
   if (state.activeView === "watchlist") {
     switchView("all");
   } else {
-    renderCatalog();
+    triggerSkeletonTransition();
   }
 
   showToast("All filters have been reset", "info");
@@ -891,6 +1019,98 @@ function renderModalStarRating(movieId) {
   }
 }
 
+// --- User Reviews & Comments Section Logic ---
+function renderModalReviews(movieId) {
+  const reviewsContainer = document.getElementById("modal-reviews-list");
+  const countBadge = document.getElementById("modal-reviews-count");
+  if (!reviewsContainer) return;
+
+  const movieReviews = state.userReviews[movieId] || [];
+  if (countBadge) countBadge.textContent = `${movieReviews.length} ${movieReviews.length === 1 ? "Review" : "Reviews"}`;
+
+  reviewsContainer.innerHTML = "";
+
+  if (movieReviews.length === 0) {
+    reviewsContainer.innerHTML = `<p class="no-reviews-msg">No reviews yet. Be the first to share your thoughts!</p>`;
+    return;
+  }
+
+  movieReviews.forEach(rev => {
+    const initials = rev.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || "U";
+    const revItem = document.createElement("div");
+    revItem.className = "user-review-item";
+    
+    let starsHtml = "";
+    for (let s = 1; s <= (rev.rating || 5); s++) {
+      starsHtml += `<i data-lucide="star"></i>`;
+    }
+
+    revItem.innerHTML = `
+      <div class="review-author-row">
+        <div class="author-info-group">
+          <div class="author-avatar">${initials}</div>
+          <div class="author-name-date">
+            <span class="author-name">${rev.name}</span>
+            <span class="review-date">${rev.date}</span>
+          </div>
+        </div>
+        <span class="review-stars-score">${starsHtml} <span>${rev.rating}/5</span></span>
+      </div>
+      <p class="review-comment-text">${rev.comment}</p>
+      <button type="button" class="btn-delete-review" data-review-id="${rev.id}" title="Delete review" aria-label="Delete review">
+        <i data-lucide="trash-2"></i>
+      </button>
+    `;
+
+    // Delete review handler
+    revItem.querySelector(".btn-delete-review").addEventListener("click", () => {
+      deleteUserReview(movieId, rev.id);
+    });
+
+    reviewsContainer.appendChild(revItem);
+  });
+
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+}
+
+function addUserReview(movieId, name, comment, rating) {
+  if (!name.trim() || !comment.trim()) {
+    showToast("Please provide both your name and review comment!", "ruby");
+    return;
+  }
+
+  if (!state.userReviews[movieId]) {
+    state.userReviews[movieId] = [];
+  }
+
+  const now = new Date();
+  const dateFormatted = now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+  const newReview = {
+    id: "rev-" + Date.now(),
+    name: name.trim(),
+    rating: rating || 5,
+    comment: comment.trim(),
+    date: dateFormatted
+  };
+
+  state.userReviews[movieId].unshift(newReview);
+  saveReviewsToStorage();
+
+  showToast("Your review has been posted! 📝", "success");
+  renderModalReviews(movieId);
+}
+
+function deleteUserReview(movieId, reviewId) {
+  if (!state.userReviews[movieId]) return;
+  state.userReviews[movieId] = state.userReviews[movieId].filter(r => r.id !== reviewId);
+  saveReviewsToStorage();
+  showToast("Review deleted", "info");
+  renderModalReviews(movieId);
+}
+
 // --- Movie Details Modal ---
 function openMovieModal(movieId) {
   const movie = MOVIES_DATA.find(m => m.id === movieId);
@@ -956,7 +1176,7 @@ function openMovieModal(movieId) {
           </div>
 
           <div class="modal-synopsis-section">
-            <h4 class="modal-section-heading">Top Cast</h4>
+            <h4 class="modal-section-heading">Lead Cast</h4>
             <div class="modal-meta-badges">
               ${castPills}
             </div>
@@ -982,13 +1202,59 @@ function openMovieModal(movieId) {
             </button>
           </div>
 
+          <!-- User Reviews & Comments Section -->
+          <div class="modal-reviews-section">
+            <div class="reviews-header-row">
+              <h4 class="modal-section-heading">Audience Reviews & Discussions</h4>
+              <span class="reviews-counter-badge" id="modal-reviews-count">0 Reviews</span>
+            </div>
+
+            <!-- Add Review Form -->
+            <form class="add-review-card" id="form-add-review">
+              <div class="review-form-top-row">
+                <input
+                  type="text"
+                  class="review-input-name"
+                  id="review-input-name"
+                  placeholder="Your Name (e.g., CinemaFan)"
+                  required
+                />
+                <div class="form-rating-picker">
+                  <span>Rating:</span>
+                  <select id="review-rating-select" class="styled-select" style="min-width: 90px; padding: 0.4rem 1.8rem 0.4rem 0.75rem;">
+                    <option value="5">★★★★★ (5/5)</option>
+                    <option value="4">★★★★☆ (4/5)</option>
+                    <option value="3">★★★☆☆ (3/5)</option>
+                    <option value="2">★★☆☆☆ (2/5)</option>
+                    <option value="1">★☆☆☆☆ (1/5)</option>
+                  </select>
+                </div>
+              </div>
+              <textarea
+                class="review-textarea"
+                id="review-textarea"
+                placeholder="Share your review, favorite scene, or thoughts..."
+                required
+              ></textarea>
+              <button type="submit" class="btn-submit-review">
+                <i data-lucide="send"></i> Post Review
+              </button>
+            </form>
+
+            <!-- Reviews Feed -->
+            <div class="user-reviews-list" id="modal-reviews-list">
+              <!-- Rendered by renderModalReviews -->
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
   `;
 
-  // Attach interactive rating
+  // Attach interactive rating & reviews
   renderModalStarRating(movieId);
+  renderModalReviews(movieId);
 
   // Attach button listeners inside modal
   document.getElementById("modal-btn-trailer").onclick = () => {
@@ -1006,6 +1272,16 @@ function openMovieModal(movieId) {
     } else {
       showToast(`Sharing "${movie.title}"`, "info");
     }
+  };
+
+  // Review Form Submit Handler
+  document.getElementById("form-add-review").onsubmit = (e) => {
+    e.preventDefault();
+    const name = document.getElementById("review-input-name").value;
+    const comment = document.getElementById("review-textarea").value;
+    const rating = parseInt(document.getElementById("review-rating-select").value, 10);
+    addUserReview(movieId, name, comment, rating);
+    document.getElementById("review-textarea").value = "";
   };
 
   // Show modal
@@ -1081,7 +1357,7 @@ function closeTrailerModal() {
 // --- Toast Notification System ---
 function showToast(message, type = "info") {
   const toast = document.createElement("div");
-  toast.className = "toast";
+  toast.className = `toast ${type}`;
 
   let iconName = "info";
   if (type === "success") iconName = "check-circle-2";
@@ -1098,7 +1374,7 @@ function showToast(message, type = "info") {
     window.lucide.createIcons();
   }
 
-  // Trigger smooth slide in
+  // Smooth slide in
   requestAnimationFrame(() => {
     toast.classList.add("show");
   });
@@ -1117,15 +1393,66 @@ function switchView(viewName) {
   state.activeView = viewName;
   elements.tabAllMovies.classList.toggle("active", viewName === "all");
   elements.tabWatchlist.classList.toggle("active", viewName === "watchlist");
-  renderCatalog();
+  triggerSkeletonTransition();
 }
 
-// --- Surprise Me Recommendation ---
+// --- Slot-Machine / Roulette "Surprise Me" Picker ---
 function surpriseMe() {
-  const randomIndex = Math.floor(Math.random() * MOVIES_DATA.length);
-  const randomMovie = MOVIES_DATA[randomIndex];
-  showToast(`🎲 Movie Night Pick: "${randomMovie.title}"!`, "info");
-  openMovieModal(randomMovie.id);
+  if (state.isShuffling) return;
+
+  const currentCards = Array.from(document.querySelectorAll(".movie-card"));
+  if (currentCards.length === 0) {
+    showToast("No movies available to pick from in current filter!", "ruby");
+    return;
+  }
+
+  state.isShuffling = true;
+  showToast("🎰 Shuffling cinema reels... Finding your pick!", "info");
+
+  // Rapid shuffle animation across cards
+  const steps = 14;
+  let currentStep = 0;
+  let delay = 60;
+
+  function runShuffleStep() {
+    // Clear previous glow
+    currentCards.forEach(c => c.classList.remove("shuffle-glow"));
+
+    // Highlight random card
+    const randomIdx = Math.floor(Math.random() * currentCards.length);
+    const chosenCard = currentCards[randomIdx];
+    chosenCard.classList.add("shuffle-glow");
+
+    currentStep++;
+    if (currentStep < steps) {
+      delay += 14; // Gradual slow down like a slot machine
+      setTimeout(runShuffleStep, delay);
+    } else {
+      // Final target selected!
+      setTimeout(() => {
+        currentCards.forEach(c => c.classList.remove("shuffle-glow"));
+        chosenCard.classList.add("picked-target");
+
+        const targetMovieId = chosenCard.dataset.movieId;
+        const targetMovie = MOVIES_DATA.find(m => m.id === targetMovieId);
+
+        // Scroll into view
+        chosenCard.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        showToast(`🎉 Tonight's Pick: "${targetMovie.title}"! Enjoy!`, "success");
+
+        // Open modal after celebratory pause
+        setTimeout(() => {
+          chosenCard.classList.remove("picked-target");
+          state.isShuffling = false;
+          openMovieModal(targetMovieId);
+        }, 900);
+
+      }, 200);
+    }
+  }
+
+  runShuffleStep();
 }
 
 // --- Event Listeners Setup ---
@@ -1153,12 +1480,17 @@ function setupEventListeners() {
     state.searchQuery = "";
     elements.searchClearBtn.classList.remove("visible");
     elements.movieSearchInput.focus();
-    renderCatalog();
+    triggerSkeletonTransition();
   });
 
   // Genre Dropdown Select
   elements.genreSelect.addEventListener("change", (e) => {
     handleGenreChange(e.target.value);
+  });
+
+  // Decade Dropdown Select
+  elements.decadeSelect.addEventListener("change", (e) => {
+    handleDecadeChange(e.target.value);
   });
 
   // Sort Dropdown Select

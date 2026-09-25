@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Movie Night - Discover top-rated movies, explore genres, view trailers & cast details, and curate your personalized watchlist in a sleek modern interface." />
+  <meta name="keywords" content="movies, cinema, movie discovery, watchlist, film ratings, movie trailers, streaming recommendations" />
+  <meta name="theme-color" content="#0b0f19" />
+  <title>Movie Night — Discover & Curate Your Cinema Experience</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Ambient background glow effects -->
+  <div class="ambient-glow glow-top-left" aria-hidden="true"></div>
+  <div class="ambient-glow glow-top-right" aria-hidden="true"></div>
+  <div class="ambient-glow glow-bottom-center" aria-hidden="true"></div>
+
+  <!-- Header Section -->
+  <header class="site-header" id="site-header">
+    <div class="header-container">
+      <!-- Logo Branding -->
+      <a href="#" class="brand-logo" id="brand-logo" aria-label="Movie Night Home">
+        <div class="logo-icon-wrapper">
+          <i data-lucide="clapperboard" class="logo-icon"></i>
+          <span class="logo-pulse"></span>
+        </div>
+        <div class="logo-text-group">
+          <span class="logo-title">MOVIE<span class="highlight">NIGHT</span></span>
+          <span class="logo-tagline">Cinema Discovery</span>
+        </div>
+      </a>
+
+      <!-- Quick Nav Tabs -->
+      <nav class="nav-tabs" aria-label="Main Navigation">
+        <button type="button" class="nav-tab active" id="tab-all-movies" data-view="all">
+          <i data-lucide="compass"></i>
+          <span>Discover</span>
+          <span class="nav-badge" id="badge-all-count">0</span>
+        </button>
+        <button type="button" class="nav-tab" id="tab-watchlist" data-view="watchlist">
+          <i data-lucide="bookmark"></i>
+          <span>Watchlist</span>
+          <span class="nav-badge badge-watchlist" id="badge-watchlist-count">0</span>
+        </button>
+      </nav>
+
+      <!-- Global Actions (Randomizer & Theme Toggle) -->
+      <div class="header-actions">
+        <button type="button" class="btn-icon-secondary" id="btn-surprise-me" title="Surprise me with a random movie recommendation" aria-label="Random Movie">
+          <i data-lucide="sparkles"></i>
+          <span class="action-btn-label">Surprise Me</span>
+        </button>
+
+        <button type="button" class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle Light / Dark Mode" aria-label="Toggle Theme">
+          <div class="toggle-icon-container">
+            <i data-lucide="moon" class="moon-icon"></i>
+            <i data-lucide="sun" class="sun-icon"></i>
+          </div>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="main-content" id="main-content">
+
+    <!-- Hero Spotlight Section -->
+    <section class="hero-spotlight" id="hero-spotlight" aria-label="Featured Movie">
+      <div class="hero-backdrop-container">
+        <img src="" alt="Featured Movie Backdrop" class="hero-backdrop-img" id="hero-backdrop-img" />
+        <div class="hero-gradient-overlay"></div>
+      </div>
+      <div class="hero-content">
+        <div class="hero-badge">
+          <i data-lucide="flame"></i>
+          <span>FEATURED SPOTLIGHT</span>
+        </div>
+        <h1 class="hero-title" id="hero-title">Loading Featured Film...</h1>
+        <p class="hero-tagline" id="hero-tagline"></p>
+        <div class="hero-meta-row" id="hero-meta">
+          <!-- Populated by JS -->
+        </div>
+        <p class="hero-description" id="hero-description">
+          Loading cinematic masterpiece synopsis...
+        </p>
+        <div class="hero-actions">
+          <button type="button" class="btn-primary" id="hero-btn-details">
+            <i data-lucide="info"></i>
+            <span>Full Details</span>
+          </button>
+          <button type="button" class="btn-secondary" id="hero-btn-trailer">
+            <i data-lucide="play-circle"></i>
+            <span>Watch Trailer</span>
+          </button>
+          <button type="button" class="btn-ghost" id="hero-btn-watchlist" aria-label="Save to Watchlist">
+            <i data-lucide="bookmark" id="hero-watchlist-icon"></i>
+            <span id="hero-watchlist-text">Add to Watchlist</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Controls & Search Toolbar -->
+    <section class="controls-section" id="controls-section">
+      <div class="controls-container">
+        <!-- Search Input with clear button and keyboard hint -->
+        <div class="search-box-wrapper">
+          <i data-lucide="search" class="search-icon"></i>
+          <input
+            type="search"
+            id="movie-search-input"
+            class="movie-search-input"
+            placeholder="Search by title, director, actor, genre... (Press '/' to focus)"
+            autocomplete="off"
+            aria-label="Search movies"
+          />
+          <button type="button" class="search-clear-btn" id="search-clear-btn" title="Clear search" aria-label="Clear search">
+            <i data-lucide="x"></i>
+          </button>
+          <span class="search-kbd-hint" id="search-kbd-hint">/</span>
+        </div>
+
+        <!-- Filter & Sort Selectors -->
+        <div class="filter-controls-group">
+          <!-- Genre Dropdown Selector -->
+          <div class="custom-select-wrapper">
+            <label for="genre-select" class="control-label">
+              <i data-lucide="film"></i> Genre
+            </label>
+            <div class="select-container">
+              <select id="genre-select" class="styled-select" aria-label="Filter movies by genre">
+                <option value="ALL">All Genres</option>
+                <!-- Populated dynamically via JS -->
+              </select>
+              <i data-lucide="chevron-down" class="select-chevron"></i>
+            </div>
+          </div>
+
+          <!-- Sort Dropdown Selector -->
+          <div class="custom-select-wrapper">
+            <label for="sort-select" class="control-label">
+              <i data-lucide="arrow-up-down"></i> Sort By
+            </label>
+            <div class="select-container">
+              <select id="sort-select" class="styled-select" aria-label="Sort movies">
+                <option value="rating-desc">Rating: Highest First ★</option>
+                <option value="rating-asc">Rating: Lowest First</option>
+                <option value="year-desc">Release Year: Newest</option>
+                <option value="year-asc">Release Year: Oldest</option>
+                <option value="title-asc">Title: A to Z</option>
+                <option value="title-desc">Title: Z to A</option>
+              </select>
+              <i data-lucide="chevron-down" class="select-chevron"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Genre Filter Pills Bar -->
+      <div class="genre-pills-bar-wrapper">
+        <div class="genre-pills-bar" id="genre-pills-container" role="tablist" aria-label="Quick genre filter chips">
+          <!-- Generated by JS: All, Action, Sci-Fi, Drama, Thriller, Animation, etc. -->
+        </div>
+      </div>
+
+      <!-- Active Filters & Results Summary Strip -->
+      <div class="results-meta-bar" id="results-meta-bar">
+        <div class="results-count-wrapper">
+          <span class="results-indicator-dot"></span>
+          <span id="results-count-text">Showing all movies</span>
+        </div>
+        <div class="active-filter-chips" id="active-filter-chips">
+          <!-- Dynamic chips for active search/genre/view -->
+        </div>
+        <button type="button" class="btn-reset-filters" id="btn-reset-filters" style="display: none;">
+          <i data-lucide="rotate-ccw"></i> <span>Reset Filters</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Movie Grid Section -->
+    <section class="movies-grid-section" id="movies-grid-section" aria-label="Movie Catalog">
+      <div class="movie-grid" id="movie-grid">
+        <!-- Rendered dynamically by app.js -->
+      </div>
+
+      <!-- Empty State Container -->
+      <div class="empty-state-card" id="empty-state" style="display: none;">
+        <div class="empty-state-icon-wrapper">
+          <i data-lucide="clapperboard" class="empty-icon"></i>
+        </div>
+        <h3 class="empty-state-title" id="empty-state-title">No Movies Found</h3>
+        <p class="empty-state-description" id="empty-state-description">
+          We couldn't find any movies matching your current filters. Try searching for a different title or resetting your filters.
+        </p>
+        <div class="empty-state-actions">
+          <button type="button" class="btn-primary" id="btn-empty-reset">
+            <i data-lucide="sparkles"></i> <span>Explore All Movies</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Interactive Movie Detail Modal -->
+  <div class="modal-overlay" id="movie-detail-modal" role="dialog" aria-modal="true" aria-labelledby="modal-movie-title" style="display: none;">
+    <div class="modal-backdrop" id="modal-backdrop-blur"></div>
+    <div class="modal-dialog">
+      <!-- Close Button -->
+      <button type="button" class="modal-close-btn" id="modal-close-btn" aria-label="Close movie details">
+        <i data-lucide="x"></i>
+      </button>
+
+      <div class="modal-inner-content" id="modal-inner-content">
+        <!-- Dynamic content injected by app.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Trailer Player Modal -->
+  <div class="modal-overlay trailer-modal-overlay" id="trailer-player-modal" role="dialog" aria-modal="true" aria-label="Movie Trailer Video Player" style="display: none;">
+    <div class="modal-backdrop" id="trailer-backdrop-blur"></div>
+    <div class="trailer-modal-dialog">
+      <div class="trailer-modal-header">
+        <div class="trailer-title-group">
+          <i data-lucide="youtube" class="trailer-yt-icon"></i>
+          <h3 id="trailer-modal-title">Official Movie Trailer</h3>
+        </div>
+        <button type="button" class="modal-close-btn" id="trailer-close-btn" aria-label="Close trailer video">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="trailer-video-wrapper" id="trailer-video-container">
+        <!-- Injected iframe trailer player -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <div class="logo-icon-wrapper mini">
+          <i data-lucide="clapperboard"></i>
+        </div>
+        <span class="footer-title">MOVIE<span class="highlight">NIGHT</span></span>
+      </div>
+      <p class="footer-copy">
+        Curated cinema discovery application. Featuring seamless real-time search, multi-genre filtering, custom ratings, responsive modals, and watchlist persistence.
+      </p>
+      <div class="footer-shortcuts">
+        <span class="kbd-badge"><kbd>/</kbd> Quick Search</span>
+        <span class="kbd-badge"><kbd>ESC</kbd> Close Modal</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Main JavaScript Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
